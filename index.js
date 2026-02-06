@@ -45,6 +45,13 @@ async function readData() {
 }
 
 // =======================
+// TRANG CHỦ
+// =======================
+app.get("/", (req, res) => {
+  res.send("HMI CLOUD SERVER RUNNING OK!");
+});
+
+// =======================
 // API WEB
 // =======================
 app.get("/data", (req, res) => {
