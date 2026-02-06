@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HMI CLOUD MONITOR</title>
+
+<style>
+body {
+  background: #0f172a;
+  color: white;
+  font-family: Arial;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.card {
+  background: #1e293b;
+  padding: 40px 60px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 0 20px #38bdf8;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+.value {
+  font-size: 80px;
+  color: #38bdf8;
+}
+
+.status {
+  margin-top: 15px;
+  font-size: 22px;
+}
+
+.connected {
+  color: #22c55e;
+}
+
+.disconnected {
+  color: #ef4444;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>HMI CLOUD SERVER</h1>
+  <div id="value" class="value">0</div>
+  <div id="status" class="status disconnected">Disconnected</div>
+</div>
+
+<script>
+async function loadData(){
+  try{
+    const res = await fetch("/data");
+    const data = await res.json();
+
+    document.getElementById("value").innerText = data.value;
+
+    const statusDiv = document.getElementById("status");
+    statusDiv.innerText = data.status;
+
+    if(data.status === "Connected"){
+      statusDiv.className = "status connected";
+    }else{
+      statusDiv.className = "status disconnected";
+    }
+
+  }catch(err){
+    console.log(err);
+  }
+}
+
+setInterval(loadData,1000);
+</script>
+
+</body>
+</html>

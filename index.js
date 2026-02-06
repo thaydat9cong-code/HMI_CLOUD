@@ -54,6 +54,8 @@ app.get("/", (req, res) => {
 // =======================
 // API WEB
 // =======================
+app.use(express.static(__dirname));
+
 app.get("/data", (req, res) => {
   res.json({
     value: latestValue,
