@@ -1,8 +1,12 @@
 const express = require("express");
+const path = require("path");          // 👈 THÊM DÒNG NÀY
 const ModbusRTU = require("modbus-serial");
 
 const app = express();
 const client = new ModbusRTU();
+
+app.use(express.static(path.join(__dirname, "public")));
+
 
 // =======================
 // BIẾN TOÀN CỤC

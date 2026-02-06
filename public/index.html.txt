@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HMI CLOUD</title>
+</head>
+<body>
+
+<h1>HMI CLOUD MONITOR</h1>
+
+<h2 id="value">Giá trị HMI: --</h2>
+<h3 id="status">Trạng thái: --</h3>
+
+<script>
+async function loadData(){
+    const res = await fetch("/data");
+    const json = await res.json();
+
+    document.getElementById("value").innerText =
+        "Giá trị HMI: " + json.value;
+
+    document.getElementById("status").innerText =
+        "Trạng thái: " + json.status;
+}
+
+setInterval(loadData,1000);
+loadData();
+</script>
+
+</body>
+</html>
