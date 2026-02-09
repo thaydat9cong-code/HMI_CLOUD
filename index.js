@@ -4,6 +4,9 @@ const path = require("path");
 const app = express();
 app.use(express.json());
 
+// phục vụ file trong thư mục public
+app.use(express.static(path.join(__dirname, "public")));
+
 // =======================
 // BIẾN LƯU GIÁ TRỊ
 // =======================
@@ -11,22 +14,16 @@ let latestValue = 0;
 let status = "Disconnected";
 
 // =======================
-// STATIC WEB
-// =======================
-app.use(express.static(path.join(__dirname, "public")));
-
-// =======================
-// API NHẬN DATA TỪ PC
+// API NHẬN DATA
 // =======================
 app.post("/update", (req, res) => {
   latestValue = req.body.value;
   status = "Connected";
-  console.log("Received from PC:", latestValue);
   res.send("OK");
 });
 
 // =======================
-// API WEB XEM DATA
+// API WEB
 // =======================
 app.get("/data", (req, res) => {
   res.json({
