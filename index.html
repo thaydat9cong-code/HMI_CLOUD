@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>HMI CLOUD – Virtual HMI</title>
 
 <style>
 body{
-  background:#0f172a;
-  font-family: Arial;
+  margin:0;
+  background:#020617;
+  font-family: Consolas, Arial;
   display:flex;
   justify-content:center;
   align-items:center;
@@ -16,68 +17,85 @@ body{
 }
 
 .hmi{
-  background:#1e293b;
+  background:#0f172a;
+  border-radius:16px;
+  padding:30px;
   width:420px;
-  padding:25px;
-  border-radius:12px;
-  box-shadow:0 0 25px #38bdf8;
+  box-shadow:0 0 40px #38bdf8;
 }
 
 .title{
   text-align:center;
-  font-size:24px;
-  margin-bottom:20px;
+  font-size:22px;
   color:#38bdf8;
+  margin-bottom:20px;
 }
 
-/* numeric display */
+/* Numeric display */
 .display{
   background:black;
-  color:#22c55e;
-  font-size:64px;
-  text-align:right;
+  border-radius:8px;
   padding:15px;
-  border-radius:6px;
+  font-size:72px;
+  color:#22c55e;
+  text-align:right;
   margin-bottom:20px;
-  font-family: "Courier New", monospace;
 }
 
-/* bar graph */
-.bar-box{
-  background:#020617;
-  height:30px;
-  border-radius:6px;
-  overflow:hidden;
-  margin-bottom:15px;
-}
-
-.bar{
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,#22c55e,#38bdf8);
-  transition:width 0.5s;
-}
-
-/* status lamp */
-.status{
+/* Lamp */
+.lamp{
   display:flex;
   align-items:center;
   gap:10px;
-  font-size:18px;
+  margin-bottom:20px;
 }
 
-.lamp{
-  width:18px;
-  height:18px;
+.dot{
+  width:16px;
+  height:16px;
   border-radius:50%;
   background:red;
-  box-shadow:0 0 10px red;
+  box-shadow:0 0 8px red;
 }
 
-.connected{
-  background:#22c55e !important;
-  box-shadow:0 0 10px #22c55e !important;
+.dot.on{
+  background:#22c55e;
+  box-shadow:0 0 10px #22c55e;
 }
+
+/* Progress bar */
+.bar{
+  background:#020617;
+  border-radius:8px;
+  height:20px;
+  overflow:hidden;
+  margin-bottom:20px;
+}
+
+.bar-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#22c55e,#38bdf8);
+}
+
+/* Buttons */
+.buttons{
+  display:flex;
+  gap:15px;
+}
+
+button{
+  flex:1;
+  padding:12px;
+  font-size:18px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  color:white;
+}
+
+.start{ background:#22c55e; }
+.stop{ background:#ef4444; }
 </style>
 </head>
 
@@ -88,13 +106,18 @@ body{
 
   <div id="value" class="display">0</div>
 
-  <div class="bar-box">
-    <div id="bar" class="bar"></div>
+  <div class="lamp">
+    <div id="lamp" class="dot"></div>
+    <div id="status">Disconnected</div>
   </div>
 
-  <div class="status">
-    <div id="lamp" class="lamp"></div>
-    <div id="statusText">Disconnected</div>
+  <div class="bar">
+    <div id="bar" class="bar-fill"></div>
+  </div>
+
+  <div class="buttons">
+    <button class="start" onclick="sendCmd(1)">START</button>
+    <button class="stop" onclick="sendCmd(0)">STOP</button>
   </div>
 </div>
 
@@ -104,31 +127,37 @@ async function loadData(){
     const res = await fetch("/data");
     const data = await res.json();
 
-    // numeric
-    document.getElementById("value").innerText = data.value;
+    const v = data.value || 0;
+    document.getElementById("value").innerText = v;
 
-    // bar (giả sử max = 100)
-    let percent = Math.min(data.value,100);
-    document.getElementById("bar").style.width = percent + "%";
-
-    // status
+    // Lamp
     const lamp = document.getElementById("lamp");
-    const text = document.getElementById("statusText");
+    const status = document.getElementById("status");
 
     if(data.status === "Connected"){
-      lamp.classList.add("connected");
-      text.innerText = "Connected";
+      lamp.classList.add("on");
+      status.innerText = "Connected";
     }else{
-      lamp.classList.remove("connected");
-      text.innerText = "Disconnected";
+      lamp.classList.remove("on");
+      status.innerText = "Disconnected";
     }
 
-  }catch(e){
-    console.log(e);
-  }
+    // Bar (giả sử 0–100)
+    document.getElementById("bar").style.width = Math.min(v,100) + "%";
+
+  }catch(e){}
 }
 
-setInterval(loadData,1000);
+setInterval(loadData, 1000);
+
+// gửi lệnh (chuẩn bị cho bước điều khiển)
+function sendCmd(cmd){
+  fetch("/cmd",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({cmd})
+  });
+}
 </script>
 
 </body>
