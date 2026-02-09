@@ -2,15 +2,15 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>HMI CLOUD - WinTK Style</title>
+<title>HMI CLOUD – WinTK Style</title>
 
 <style>
 body {
     background: #2b2b2b;
-    font-family: Arial, sans-serif;
+    font-family: Tahoma, Arial, sans-serif;
 }
 
-/* Khung HMI giống WinTK */
+/* Khung HMI */
 #hmi {
     width: 900px;
     height: 500px;
@@ -29,16 +29,17 @@ body {
     font-weight: bold;
 }
 
-/* Thanh menu */
+/* Menu WinTK */
 #menu {
     background: #ccc;
     padding: 5px;
 }
 #menu button {
     margin-right: 5px;
+    padding: 4px 10px;
 }
 
-/* Khu vực màn hình */
+/* Screen */
 .screen {
     display: none;
     padding: 20px;
@@ -47,14 +48,28 @@ body {
     display: block;
 }
 
-/* Widget HMI */
+/* Ô hiển thị số */
 .value-box {
-    width: 150px;
+    width: 180px;
     padding: 10px;
     background: black;
-    color: lime;
-    font-size: 28px;
-    text-align: center;
+    color: #00ff00;
+    font-size: 32px;
+    text-align: right;
+    border: 2px inset #555;
+}
+
+/* Trạng thái kết nối */
+.status {
+    margin-top: 10px;
+}
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    background: red;
 }
 </style>
 </head>
@@ -74,63 +89,63 @@ body {
     <div id="screen1" class="screen active">
         <h3>📟 MÀN HÌNH CHÍNH</h3>
         Giá trị PLC:
-        <div class="value-box" id="tagValue">0</div>
-        <br><br>
-        <button onclick="increase()">Tăng giá trị</button>
+        <div class="value-box" id="plcValue">---</div>
+
+        <div class="status">
+            <span class="dot" id="statusDot"></span>
+            <span id="statusText">Disconnected</span>
+        </div>
     </div>
 
     <!-- SCREEN 2 -->
     <div id="screen2" class="screen">
-        <h3>⚙️ MÀN HÌNH CÀI ĐẶT</h3>
-        Trạng thái:
-        <b id="status">Disconnected</b>
-        <br><br>
-        <button onclick="connect()">Connect</button>
-        <button onclick="disconnect()">Disconnect</button>
+        <h3>📊 GIÁM SÁT</h3>
+        Giá trị hiện tại:
+        <div class="value-box" id="mirrorValue">---</div>
     </div>
 
     <!-- SCREEN 3 -->
     <div id="screen3" class="screen">
-        <h3>📊 MÀN HÌNH GIÁM SÁT</h3>
-        <p>Giá trị hiện tại:</p>
-        <div class="value-box" id="mirrorValue">0</div>
+        <h3>ℹ️ THÔNG TIN HỆ THỐNG</h3>
+        <p>HMI Cloud – Monitor Only</p>
+        <p>Data Source: PLC → PC → Cloud</p>
     </div>
 </div>
 
 <script>
-/* TAG giống PLC */
-let TAG = {
-    value: 0,
-    connected: false
-};
+/* ====== DATA TỪ CLOUD ======
+   Chỗ này sau này bạn thay bằng:
+   - WebSocket
+   - Fetch API
+   - MQTT
+================================ */
 
-/* Chuyển màn */
+function onCloudData(data) {
+    // data = { value: number, connected: true/false }
+
+    document.getElementById("plcValue").innerText = data.value;
+    document.getElementById("mirrorValue").innerText = data.value;
+
+    document.getElementById("statusText").innerText =
+        data.connected ? "Connected" : "Disconnected";
+
+    document.getElementById("statusDot").style.background =
+        data.connected ? "lime" : "red";
+}
+
+/* DEMO dữ liệu (chỉ để test hiển thị – có thể xóa) */
+setInterval(() => {
+    onCloudData({
+        value: Math.floor(Math.random() * 100),
+        connected: true
+    });
+}, 1000);
+
+/* Chuyển màn hình */
 function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.screen')
+        .forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-}
-
-/* Logic HMI */
-function increase() {
-    TAG.value++;
-    updateUI();
-}
-
-function connect() {
-    TAG.connected = true;
-    updateUI();
-}
-
-function disconnect() {
-    TAG.connected = false;
-    updateUI();
-}
-
-function updateUI() {
-    document.getElementById('tagValue').innerText = TAG.value;
-    document.getElementById('mirrorValue').innerText = TAG.value;
-    document.getElementById('status').innerText =
-        TAG.connected ? 'Connected' : 'Disconnected';
 }
 </script>
 
