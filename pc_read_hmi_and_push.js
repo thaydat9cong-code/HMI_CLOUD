@@ -6,20 +6,14 @@ const HMI_IP = "192.168.8.15";
 const HMI_PORT = 502;
 const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
-let socket;
-let client;
-let isConnected = false;
-let timer = null;
-
-function sendStatus(value, connected) {
-  return axios.post(CLOUD_URL, {
-    value: value,
-    connected: connected,
-    ts: Date.now()
-  });
-}
+let socket = null;
+let client = null;
+let pollTimer = null;
+let connected = false;
 
 function connectHMI() {
+  console.log("🔌 Connecting to HMI...");
+
   socket = new net.Socket();
   client = new Modbus.client.TCP(socket, 1);
 
@@ -28,60 +22,71 @@ function connectHMI() {
   socket.connect({ host: HMI_IP, port: HMI_PORT });
 
   socket.on("connect", () => {
-    console.log("✅ Connected to HMI");
-    isConnected = true;
+    console.log("✅ HMI connected");
+    connected = true;
 
-    timer = setInterval(readAndPush, 2000);
+    startPolling();
   });
 
-  socket.on("error", async (err) => {
+  socket.on("error", (err) => {
     console.log("❌ Socket error:", err.message);
     handleDisconnect();
   });
 
   socket.on("timeout", () => {
-    console.log("⏱️ HMI timeout");
+    console.log("⏱️ Socket timeout");
     handleDisconnect();
   });
 
   socket.on("close", () => {
-    console.log("🔌 HMI disconnected");
+    console.log("🔴 Socket closed");
     handleDisconnect();
   });
 }
 
-async function readAndPush() {
-  try {
-    const resp = await client.readHoldingRegisters(5, 1);
-    const value = resp.response.body.values[0];
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
 
-    console.log("📟 HMI LW5 =", value);
-    await sendStatus(value, true);
+  pollTimer = setInterval(async () => {
+    try {
+      const resp = await client.readHoldingRegisters(5, 1);
+      const value = resp.response.body.values[0];
 
-  } catch (err) {
-    console.log("❌ Read error:", err.message);
-    handleDisconnect();
-  }
+      console.log("📟 HMI LW5 =", value);
+
+      await axios.post(CLOUD_URL, {
+        value,
+        connected: true
+      });
+
+    } catch (err) {
+      console.log("❌ Read error:", err.message);
+      handleDisconnect();
+    }
+  }, 2000);
 }
 
 async function handleDisconnect() {
-  if (!isConnected) return;
+  if (!connected) return;
+  connected = false;
 
-  isConnected = false;
+  console.log("⚠️ HMI disconnected");
 
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
 
   try {
     socket.destroy();
   } catch {}
 
-  await sendStatus(null, false);
+  // báo cloud là đã mất HMI
+  await axios.post(CLOUD_URL, {
+    value: null,
+    connected: false
+  });
 
-  console.log("🔄 Reconnecting in 5s...");
-  setTimeout(connectHMI, 5000);
+  // thử reconnect sau 3s
+  setTimeout(connectHMI, 3000);
 }
 
 connectHMI();
