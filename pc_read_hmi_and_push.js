@@ -6,87 +6,59 @@ const HMI_IP = "192.168.8.15";
 const HMI_PORT = 502;
 const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
-let socket = null;
-let client = null;
-let pollTimer = null;
+let socket;
+let client;
 let connected = false;
 
 function connectHMI() {
-  console.log("🔌 Connecting to HMI...");
-
   socket = new net.Socket();
   client = new Modbus.client.TCP(socket, 1);
-
-  socket.setTimeout(3000);
 
   socket.connect({ host: HMI_IP, port: HMI_PORT });
 
   socket.on("connect", () => {
-    console.log("✅ HMI connected");
     connected = true;
-
-    startPolling();
+    console.log("✅ HMI connected");
   });
 
-  socket.on("error", (err) => {
-    console.log("❌ Socket error:", err.message);
-    handleDisconnect();
-  });
-
-  socket.on("timeout", () => {
-    console.log("⏱️ Socket timeout");
-    handleDisconnect();
-  });
-
-  socket.on("close", () => {
-    console.log("🔴 Socket closed");
-    handleDisconnect();
-  });
+  socket.on("error", handleDisconnect);
+  socket.on("close", handleDisconnect);
 }
 
-function startPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-
-  pollTimer = setInterval(async () => {
-    try {
-      const resp = await client.readHoldingRegisters(5, 1);
-      const value = resp.response.body.values[0];
-
-      console.log("📟 HMI LW5 =", value);
-
-      await axios.post(CLOUD_URL, {
-        value,
-        connected: true
-      });
-
-    } catch (err) {
-      console.log("❌ Read error:", err.message);
-      handleDisconnect();
-    }
-  }, 2000);
-}
-
-async function handleDisconnect() {
-  if (!connected) return;
+function handleDisconnect() {
+  if (connected) {
+    console.log("❌ HMI disconnected");
+  }
   connected = false;
 
-  console.log("⚠️ HMI disconnected");
+  // báo cloud HMI mất
+  axios.post(CLOUD_URL, {
+    hmi_connected: false,
+    hmi_value: null,
+    ts: Date.now()
+  }).catch(() => {});
 
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
+  setTimeout(connectHMI, 3000); // auto reconnect
+}
+
+setInterval(async () => {
+  if (!connected) return;
 
   try {
-    socket.destroy();
-  } catch {}
+    const resp = await client.readHoldingRegisters(5, 1); // LW5
+    const value = resp.response.body.values[0];
 
-  // báo cloud là đã mất HMI
-  await axios.post(CLOUD_URL, {
-    value: null,
-    connected: false
-  });
+    console.log("📟 HMI LW5 =", value);
 
-  // thử reconnect sau 3s
-  setTimeout(connectHMI, 3000);
-}
+    await axios.post(CLOUD_URL, {
+      hmi_connected: true,
+      hmi_value: value,
+      ts: Date.now()
+    });
+
+  } catch (err) {
+    handleDisconnect();
+  }
+}, 2000);
 
 connectHMI();
