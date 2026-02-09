@@ -2,41 +2,42 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>HMI CLOUD – WinTK Style</title>
+<title>HMI CLOUD – WinTK Monitor</title>
 
 <style>
 body {
     background: #2b2b2b;
-    font-family: Tahoma, Arial, sans-serif;
+    font-family: Arial, sans-serif;
 }
 
 /* Khung HMI */
 #hmi {
     width: 900px;
     height: 500px;
-    background: #e5e5e5;
+    background: #e6e6e6;
     margin: 30px auto;
     border: 3px solid #333;
 }
 
-/* Thanh tiêu đề */
+/* Title bar */
 #titlebar {
-    height: 40px;
+    height: 38px;
     background: #004aad;
     color: white;
-    line-height: 40px;
+    line-height: 38px;
     padding-left: 10px;
     font-weight: bold;
 }
 
 /* Menu WinTK */
 #menu {
-    background: #ccc;
+    background: #d0d0d0;
     padding: 5px;
 }
 #menu button {
     margin-right: 5px;
-    padding: 4px 10px;
+    padding: 3px 10px;
+    cursor: pointer;
 }
 
 /* Screen */
@@ -48,28 +49,29 @@ body {
     display: block;
 }
 
-/* Ô hiển thị số */
+/* HMI object */
 .value-box {
     width: 180px;
-    padding: 10px;
+    padding: 12px;
     background: black;
-    color: #00ff00;
-    font-size: 32px;
-    text-align: right;
+    color: lime;
+    font-size: 30px;
+    text-align: center;
     border: 2px inset #555;
 }
 
-/* Trạng thái kết nối */
-.status {
+/* Status */
+#status {
+    display: flex;
+    align-items: center;
     margin-top: 10px;
 }
-.dot {
-    width: 12px;
-    height: 12px;
+#statusDot {
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
     background: red;
+    margin-right: 8px;
 }
 </style>
 </head>
@@ -91,62 +93,76 @@ body {
         Giá trị PLC:
         <div class="value-box" id="plcValue">---</div>
 
-        <div class="status">
-            <span class="dot" id="statusDot"></span>
+        <div id="status">
+            <div id="statusDot"></div>
             <span id="statusText">Disconnected</span>
         </div>
     </div>
 
     <!-- SCREEN 2 -->
     <div id="screen2" class="screen">
-        <h3>📊 GIÁM SÁT</h3>
-        Giá trị hiện tại:
-        <div class="value-box" id="mirrorValue">---</div>
+        <h3>⚙️ THÔNG TIN KẾT NỐI</h3>
+        <p>Web chỉ hiển thị dữ liệu từ Cloud</p>
+        <p>Không điều khiển PLC</p>
+        <p>Polling: 500 ms</p>
+        <p>Timeout: 2 s</p>
     </div>
 
     <!-- SCREEN 3 -->
     <div id="screen3" class="screen">
-        <h3>ℹ️ THÔNG TIN HỆ THỐNG</h3>
-        <p>HMI Cloud – Monitor Only</p>
-        <p>Data Source: PLC → PC → Cloud</p>
+        <h3>📊 GIÁM SÁT</h3>
+        Giá trị hiện tại:
+        <div class="value-box" id="mirrorValue">---</div>
     </div>
 </div>
 
 <script>
-/* ====== DATA TỪ CLOUD ======
-   Chỗ này sau này bạn thay bằng:
-   - WebSocket
-   - Fetch API
-   - MQTT
-================================ */
-
-function onCloudData(data) {
-    // data = { value: number, connected: true/false }
-
-    document.getElementById("plcValue").innerText = data.value;
-    document.getElementById("mirrorValue").innerText = data.value;
-
-    document.getElementById("statusText").innerText =
-        data.connected ? "Connected" : "Disconnected";
-
-    document.getElementById("statusDot").style.background =
-        data.connected ? "lime" : "red";
-}
-
-/* DEMO dữ liệu (chỉ để test hiển thị – có thể xóa) */
-setInterval(() => {
-    onCloudData({
-        value: Math.floor(Math.random() * 100),
-        connected: true
-    });
-}, 1000);
-
 /* Chuyển màn hình */
 function showScreen(id) {
     document.querySelectorAll('.screen')
         .forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 }
+
+/* Watchdog */
+let lastUpdate = 0;
+
+/* Fetch dữ liệu thật từ Cloud */
+async function fetchCloudData() {
+    try {
+        const res = await fetch("/data");
+        const data = await res.json();
+
+        lastUpdate = Date.now();
+        updateUI(data.value, true);
+
+    } catch (err) {
+        checkTimeout();
+    }
+}
+
+/* Kiểm tra mất kết nối */
+function checkTimeout() {
+    if (Date.now() - lastUpdate > 2000) {
+        updateUI("---", false);
+    }
+}
+
+/* Update HMI */
+function updateUI(value, connected) {
+    document.getElementById("plcValue").innerText = value;
+    document.getElementById("mirrorValue").innerText = value;
+
+    document.getElementById("statusText").innerText =
+        connected ? "Connected" : "Disconnected";
+
+    document.getElementById("statusDot").style.background =
+        connected ? "lime" : "red";
+}
+
+/* Polling giống HMI thật */
+setInterval(fetchCloudData, 500);
+setInterval(checkTimeout, 500);
 </script>
 
 </body>
