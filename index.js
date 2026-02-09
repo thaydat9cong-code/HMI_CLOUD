@@ -1,28 +1,31 @@
 const express = require("express");
 const app = express();
 
-let hmiValue = 0;
-let lastUpdate = Date.now();
+let hmiValue = null;
+let hmiConnected = false;
+let lastUpdate = 0;
 
 app.use(express.json());
 
 // ===== API nhận dữ liệu từ PC / HMI =====
 app.post("/update", (req, res) => {
-  hmiValue = req.body.value;
+  hmiValue = req.body.hmi_value;
+  hmiConnected = req.body.hmi_connected;
   lastUpdate = Date.now();
   res.send("OK");
 });
 
 // ===== API để web đọc dữ liệu =====
-app.get("/data", (req, res) => {
-  const connected = Date.now() - lastUpdate < 5000;
+app.get("/api/status", (req, res) => {
+  const online = hmiConnected && (Date.now() - lastUpdate < 5000);
+
   res.json({
-    value: hmiValue,
-    status: connected ? "Connected" : "Disconnected"
+    hmi_value: hmiValue,
+    hmi_connected: online
   });
 });
 
-// ===== TRẢ GIAO DIỆN HMI =====
+// ===== TRẢ GIAO DIỆN =====
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
