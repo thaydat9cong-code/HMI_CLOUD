@@ -89,9 +89,9 @@ body {
 
     <!-- SCREEN 1 -->
     <div id="screen1" class="screen active">
-        <h3>📟 MÀN HÌNH CHÍNH (HMI)</h3>
-        Giá trị HMI (LW):
-        <div class="value-box" id="hmiValue">---</div>
+        <h3>📟 MÀN HÌNH CHÍNH</h3>
+        Giá trị PLC:
+        <div class="value-box" id="plcValue">---</div>
 
         <div id="status">
             <div id="statusDot"></div>
@@ -102,15 +102,15 @@ body {
     <!-- SCREEN 2 -->
     <div id="screen2" class="screen">
         <h3>⚙️ THÔNG TIN KẾT NỐI</h3>
-        <p>Nguồn dữ liệu: HMI WinTK</p>
-        <p>Gateway: PC NodeJS</p>
-        <p>Cloud: Render</p>
-        <p>Polling Web: 500 ms</p>
+        <p>Web chỉ hiển thị dữ liệu từ Cloud</p>
+        <p>Không điều khiển PLC</p>
+        <p>Polling: 500 ms</p>
+        <p>Timeout: 2 s</p>
     </div>
 
     <!-- SCREEN 3 -->
     <div id="screen3" class="screen">
-        <h3>📊 GIÁM SÁT HMI</h3>
+        <h3>📊 GIÁM SÁT</h3>
         Giá trị hiện tại:
         <div class="value-box" id="mirrorValue">---</div>
     </div>
@@ -124,31 +124,34 @@ function showScreen(id) {
     document.getElementById(id).classList.add('active');
 }
 
+/* Watchdog */
+let lastUpdate = 0;
+
 /* Fetch dữ liệu thật từ Cloud */
 async function fetchCloudData() {
     try {
         const res = await fetch("/data");
         const data = await res.json();
 
-        if (!data.hmi_connected) {
-            updateUI(null, false);
-            return;
-        }
-
-        updateUI(data.hmi_value, true);
+        lastUpdate = Date.now();
+        updateUI(data.value, true);
 
     } catch (err) {
-        updateUI(null, false);
+        checkTimeout();
+    }
+}
+
+/* Kiểm tra mất kết nối */
+function checkTimeout() {
+    if (Date.now() - lastUpdate > 2000) {
+        updateUI("---", false);
     }
 }
 
 /* Update HMI */
 function updateUI(value, connected) {
-    document.getElementById("hmiValue").innerText =
-        connected ? value : "---";
-
-    document.getElementById("mirrorValue").innerText =
-        connected ? value : "---";
+    document.getElementById("plcValue").innerText = value;
+    document.getElementById("mirrorValue").innerText = value;
 
     document.getElementById("statusText").innerText =
         connected ? "Connected" : "Disconnected";
@@ -159,6 +162,7 @@ function updateUI(value, connected) {
 
 /* Polling giống HMI thật */
 setInterval(fetchCloudData, 500);
+setInterval(checkTimeout, 500);
 </script>
 
 </body>
