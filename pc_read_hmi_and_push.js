@@ -6,8 +6,7 @@ const HMI_IP = "192.168.8.15";
 const HMI_PORT = 502;
 const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
-let socket;
-let client;
+let socket, client;
 let connected = false;
 
 function connectHMI() {
@@ -21,30 +20,37 @@ function connectHMI() {
     console.log("✅ HMI connected");
   });
 
-  socket.on("error", handleDisconnect);
   socket.on("close", handleDisconnect);
+  socket.on("error", handleDisconnect);
 }
 
-function handleDisconnect() {
+async function handleDisconnect() {
   if (connected) console.log("❌ HMI disconnected");
   connected = false;
-  setTimeout(connectHMI, 3000); // auto reconnect
+
+  await axios.post(CLOUD_URL, {
+    hmi_connected: false
+  }).catch(() => {});
+
+  setTimeout(connectHMI, 3000);
 }
 
 setInterval(async () => {
   if (!connected) return;
 
   try {
-    const resp = await client.readHoldingRegisters(5, 1); // LW5
-    const value = resp.response.body.values[0];
+    const r = await client.readHoldingRegisters(5, 1);
+    const value = r.response.body.values[0];
 
-    console.log("📟 HMI LW5 =", value);
+    console.log("📟 LW5 =", value);
 
-    await axios.post(CLOUD_URL, { value });
-
-  } catch (err) {
+    await axios.post(CLOUD_URL, {
+      hmi_connected: true,
+      hmi_value: value
+    });
+  } catch {
     handleDisconnect();
   }
-}, 2000);
+}, 1000);
 
 connectHMI();

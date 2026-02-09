@@ -4,72 +4,110 @@
 <meta charset="UTF-8">
 <title>HMI CLOUD – WinTK Monitor</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body { background:#2b2b2b; font-family:Arial }
-#hmi { width:900px; height:500px; background:#e6e6e6; margin:30px auto; border:3px solid #333 }
+#hmi { width:900px; height:520px; background:#e6e6e6; margin:30px auto; border:3px solid #333 }
 #titlebar { height:38px; background:#004aad; color:white; line-height:38px; padding-left:10px; font-weight:bold }
 #menu { background:#d0d0d0; padding:5px }
-#menu button { margin-right:5px; padding:3px 10px }
+#menu button { margin-right:5px }
 .screen { display:none; padding:20px }
 .screen.active { display:block }
 .value-box { width:180px; padding:12px; background:black; color:lime; font-size:30px; text-align:center }
-#status { display:flex; align-items:center; margin-top:10px }
-#statusDot { width:10px; height:10px; border-radius:50%; background:red; margin-right:8px }
+#statusDot { width:10px; height:10px; border-radius:50%; background:red; display:inline-block }
+table { border-collapse:collapse }
+td,th { border:1px solid #333; padding:4px 8px }
 </style>
 </head>
 
 <body>
-
 <div id="hmi">
-  <div id="titlebar">HMI CLOUD MONITOR (WinTK Style)</div>
+<div id="titlebar">HMI CLOUD MONITOR (WinTK Style)</div>
 
-  <div id="menu">
-    <button onclick="showScreen('s1')">Màn hình 1</button>
-    <button onclick="showScreen('s2')">Màn hình 2</button>
-    <button onclick="showScreen('s3')">Màn hình 3</button>
-  </div>
+<div id="menu">
+<button onclick="showScreen('s1')">Màn 1</button>
+<button onclick="showScreen('s2')">Màn 2</button>
+<button onclick="showScreen('s3')">Màn 3</button>
+<button onclick="showScreen('s4')">📈 Đồ thị</button>
+<button onclick="showScreen('s5')">🕒 Lịch sử</button>
+</div>
 
-  <div id="s1" class="screen active">
-    <h3>📟 MÀN HÌNH CHÍNH (HMI)</h3>
-    <div class="value-box" id="hmiValue">---</div>
-    <div id="status">
-      <div id="statusDot"></div>
-      <span id="statusText">Disconnected</span>
-    </div>
-  </div>
+<div id="s1" class="screen active">
+<h3>MÀN HÌNH CHÍNH</h3>
+<div class="value-box" id="hmiValue">---</div>
+<p><span id="statusDot"></span> <span id="statusText">Disconnected</span></p>
+</div>
 
-  <div id="s2" class="screen"><h3>⚙️ THÔNG TIN</h3></div>
-  <div id="s3" class="screen">
-    <h3>📊 GIÁM SÁT</h3>
-    <div class="value-box" id="mirrorValue">---</div>
-  </div>
+<div id="s2" class="screen">
+<h3>THÔNG TIN</h3>
+<p>Nguồn: HMI WinTK</p>
+<p>Gateway: NodeJS</p>
+<p>Cloud: Render</p>
+</div>
+
+<div id="s3" class="screen">
+<h3>MIRROR</h3>
+<div class="value-box" id="mirrorValue">---</div>
+</div>
+
+<div id="s4" class="screen">
+<h3>ĐỒ THỊ LW5</h3>
+<canvas id="chart" height="200"></canvas>
+</div>
+
+<div id="s5" class="screen">
+<h3>LỊCH SỬ LW5</h3>
+<table>
+<thead><tr><th>Time</th><th>Value</th></tr></thead>
+<tbody id="log"></tbody>
+</table>
+</div>
+
 </div>
 
 <script>
 function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
 }
+
+let chart = new Chart(document.getElementById("chart"), {
+ type:"line",
+ data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
+ options:{ animation:false }
+});
 
 async function fetchData(){
-  try{
-    const res = await fetch("/api/status");
-    const data = await res.json();
-    updateUI(data.hmi_value, data.hmi_connected);
-  }catch{
-    updateUI(null,false);
-  }
+ try{
+  const r = await fetch("/api/status");
+  const d = await r.json();
+
+  updateUI(d);
+ }catch{}
 }
 
-function updateUI(value, connected){
-  hmiValue.innerText = connected ? value : "---";
-  mirrorValue.innerText = connected ? value : "---";
-  statusText.innerText = connected ? "Connected" : "Disconnected";
-  statusDot.style.background = connected ? "lime" : "red";
+function updateUI(d){
+ const c = d.hmi_connected;
+
+ document.getElementById("statusText").innerText = c?"Connected":"Disconnected";
+ document.getElementById("statusDot").style.background = c?"lime":"red";
+
+ document.getElementById("hmiValue").innerText = c?d.hmi_value:"---";
+ document.getElementById("mirrorValue").innerText = c?d.hmi_value:"---";
+
+ if(d.history){
+  chart.data.labels = d.history.map(i=>i.t);
+  chart.data.datasets[0].data = d.history.map(i=>i.v);
+  chart.update();
+
+  document.getElementById("log").innerHTML =
+    d.history.slice(-20).reverse()
+      .map(i=>`<tr><td>${i.t}</td><td>${i.v}</td></tr>`).join("");
+ }
 }
 
-setInterval(fetchData, 1000);
+setInterval(fetchData,1000);
 </script>
-
 </body>
 </html>
