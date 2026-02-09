@@ -123,13 +123,27 @@ function showScreen(id) {
     document.getElementById(id).classList.add('active');
 }
 
+let lastSeen = 0;
+
 async function fetchCloudData() {
     try {
-        const res = await fetch("/api/status");
+        const res = await fetch("/data", { cache: "no-store" });
         const data = await res.json();
 
-        updateUI(data.hmi_value, data.hmi_connected);
+        if (data.status === "Connected") {
+            lastSeen = Date.now();
+            updateUI(data.value, true);
+        } else {
+            checkTimeout();
+        }
+
     } catch (err) {
+        checkTimeout();
+    }
+}
+
+function checkTimeout() {
+    if (Date.now() - lastSeen > 3000) {
         updateUI(null, false);
     }
 }
@@ -148,6 +162,7 @@ function updateUI(value, connected) {
         connected ? "lime" : "red";
 }
 
+/* Polling liên tục */
 setInterval(fetchCloudData, 1000);
 </script>
 
