@@ -1,62 +1,36 @@
 const express = require("express");
+<<<<<<< HEAD
 const path = require("path");          // 👈 THÊM DÒNG NÀY
 const ModbusRTU = require("modbus-serial");
+=======
+>>>>>>> 80f69c47e73d30d75d0faba66003d6b10dedb60a
 
 const app = express();
-const client = new ModbusRTU();
+app.use(express.json());
 
 app.use(express.static(path.join(__dirname, "public")));
 
 
 // =======================
-// BIẾN TOÀN CỤC
+// BIẾN LƯU GIÁ TRỊ
 // =======================
 let latestValue = 0;
 let status = "Disconnected";
 
 // =======================
-// KẾT NỐI MODBUS TCP
+// API NHẬN DATA TỪ PC
 // =======================
-async function connectModbus() {
-  try {
-    if (client.isOpen) return;
+app.post("/update", (req, res) => {
+  latestValue = req.body.value;
+  status = "Connected";
 
-    await client.connectTCP("192.168.8.15", { port: 502 }); // IP HMI
-    client.setID(1);
-    status = "Connected";
-    console.log("Connected to HMI");
-  } catch (err) {
-    status = "Disconnected";
-    console.log("Connect error:", err.message);
-  }
-}
+  console.log("Received from PC:", latestValue);
 
-// =======================
-// ĐỌC GIÁ TRỊ TỪ LW5
-// =======================
-async function readData() {
-  if (!client.isOpen) return;
-
-  try {
-    const data = await client.readHoldingRegisters(5, 1);
-    latestValue = data.data[0];
-    status = "Connected";
-    console.log("Gia tri tu HMI:", latestValue);
-  } catch (err) {
-    status = "Disconnected";
-    console.log("Read error:", err.message);
-  }
-}
-
-// =======================
-// TRANG CHỦ
-// =======================
-app.get("/", (req, res) => {
-  res.send("HMI CLOUD SERVER RUNNING OK!");
+  res.send("OK");
 });
 
 // =======================
-// API WEB
+// API WEB XEM DATA
 // =======================
 app.use(express.static(__dirname));
 
@@ -68,10 +42,11 @@ app.get("/data", (req, res) => {
 });
 
 // =======================
-// LẶP
+// TRANG GỐC
 // =======================
-setInterval(connectModbus, 5000);
-setInterval(readData, 1000);
+app.get("/", (req, res) => {
+  res.send("HMI CLOUD SERVER RUNNING OK!");
+});
 
 // =======================
 // SERVER
