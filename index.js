@@ -1,40 +1,32 @@
 const express = require("express");
-const path = require("path");
-
 const app = express();
+
+let hmiValue = 0;
+let lastUpdate = Date.now();
+
 app.use(express.json());
 
-// phục vụ file trong thư mục public
-app.use(express.static(path.join(__dirname, "public")));
-
-// =======================
-// BIẾN LƯU GIÁ TRỊ
-// =======================
-let latestValue = 0;
-let status = "Disconnected";
-
-// =======================
-// API NHẬN DATA
-// =======================
+// ===== API nhận dữ liệu từ PC / HMI =====
 app.post("/update", (req, res) => {
-  latestValue = req.body.value;
-  status = "Connected";
+  hmiValue = req.body.value;
+  lastUpdate = Date.now();
   res.send("OK");
 });
 
-// =======================
-// API WEB
-// =======================
+// ===== API để web đọc dữ liệu =====
 app.get("/data", (req, res) => {
+  const connected = Date.now() - lastUpdate < 5000;
   res.json({
-    value: latestValue,
-    status: status
+    value: hmiValue,
+    status: connected ? "Connected" : "Disconnected"
   });
 });
 
-// =======================
-// SERVER
-// =======================
+// ===== TRẢ GIAO DIỆN HMI =====
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("HMI CLOUD SERVER RUNNING OK!");
