@@ -5,155 +5,71 @@
 <title>HMI CLOUD – WinTK Monitor</title>
 
 <style>
-body {
-    background: #2b2b2b;
-    font-family: Arial, sans-serif;
-}
-
-/* Khung HMI */
-#hmi {
-    width: 900px;
-    height: 500px;
-    background: #e6e6e6;
-    margin: 30px auto;
-    border: 3px solid #333;
-}
-
-/* Title bar */
-#titlebar {
-    height: 38px;
-    background: #004aad;
-    color: white;
-    line-height: 38px;
-    padding-left: 10px;
-    font-weight: bold;
-}
-
-/* Menu WinTK */
-#menu {
-    background: #d0d0d0;
-    padding: 5px;
-}
-#menu button {
-    margin-right: 5px;
-    padding: 3px 10px;
-    cursor: pointer;
-}
-
-/* Screen */
-.screen {
-    display: none;
-    padding: 20px;
-}
-.screen.active {
-    display: block;
-}
-
-/* HMI object */
-.value-box {
-    width: 180px;
-    padding: 12px;
-    background: black;
-    color: lime;
-    font-size: 30px;
-    text-align: center;
-    border: 2px inset #555;
-}
-
-/* Status */
-#status {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-}
-#statusDot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: red;
-    margin-right: 8px;
-}
+body { background:#2b2b2b; font-family:Arial }
+#hmi { width:900px; height:500px; background:#e6e6e6; margin:30px auto; border:3px solid #333 }
+#titlebar { height:38px; background:#004aad; color:white; line-height:38px; padding-left:10px; font-weight:bold }
+#menu { background:#d0d0d0; padding:5px }
+#menu button { margin-right:5px; padding:3px 10px }
+.screen { display:none; padding:20px }
+.screen.active { display:block }
+.value-box { width:180px; padding:12px; background:black; color:lime; font-size:30px; text-align:center }
+#status { display:flex; align-items:center; margin-top:10px }
+#statusDot { width:10px; height:10px; border-radius:50%; background:red; margin-right:8px }
 </style>
 </head>
 
 <body>
 
 <div id="hmi">
-    <div id="titlebar">HMI CLOUD MONITOR (WinTK Style)</div>
+  <div id="titlebar">HMI CLOUD MONITOR (WinTK Style)</div>
 
-    <div id="menu">
-        <button onclick="showScreen('screen1')">Màn hình 1</button>
-        <button onclick="showScreen('screen2')">Màn hình 2</button>
-        <button onclick="showScreen('screen3')">Màn hình 3</button>
+  <div id="menu">
+    <button onclick="showScreen('s1')">Màn hình 1</button>
+    <button onclick="showScreen('s2')">Màn hình 2</button>
+    <button onclick="showScreen('s3')">Màn hình 3</button>
+  </div>
+
+  <div id="s1" class="screen active">
+    <h3>📟 MÀN HÌNH CHÍNH (HMI)</h3>
+    <div class="value-box" id="hmiValue">---</div>
+    <div id="status">
+      <div id="statusDot"></div>
+      <span id="statusText">Disconnected</span>
     </div>
+  </div>
 
-    <!-- SCREEN 1 -->
-    <div id="screen1" class="screen active">
-        <h3>📟 MÀN HÌNH CHÍNH (HMI)</h3>
-        Giá trị HMI (LW):
-        <div class="value-box" id="hmiValue">---</div>
-
-        <div id="status">
-            <div id="statusDot"></div>
-            <span id="statusText">Disconnected</span>
-        </div>
-    </div>
-
-    <!-- SCREEN 2 -->
-    <div id="screen2" class="screen">
-        <h3>⚙️ THÔNG TIN KẾT NỐI</h3>
-        <p>Nguồn dữ liệu: HMI WinTK</p>
-        <p>Gateway: PC NodeJS</p>
-        <p>Cloud: Render</p>
-        <p>Polling Web: 500 ms</p>
-    </div>
-
-    <!-- SCREEN 3 -->
-    <div id="screen3" class="screen">
-        <h3>📊 GIÁM SÁT HMI</h3>
-        Giá trị hiện tại:
-        <div class="value-box" id="mirrorValue">---</div>
-    </div>
+  <div id="s2" class="screen"><h3>⚙️ THÔNG TIN</h3></div>
+  <div id="s3" class="screen">
+    <h3>📊 GIÁM SÁT</h3>
+    <div class="value-box" id="mirrorValue">---</div>
+  </div>
 </div>
 
 <script>
-function showScreen(id) {
-    document.querySelectorAll('.screen')
-        .forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
 
-async function fetchCloudData() {
-    try {
-        const res = await fetch("/api/status", { cache: "no-store" });
-        const data = await res.json();
-
-        updateUI(data.hmi_value, data.hmi_connected);
-    } catch (err) {
-        updateUI(null, false);
-    }
+async function fetchData(){
+  try{
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    updateUI(data.hmi_value, data.hmi_connected);
+  }catch{
+    updateUI(null,false);
+  }
 }
 
-function updateUI(value, connected) {
-    document.getElementById("hmiValue").innerText =
-        connected ? value : "---";
-
-    document.getElementById("mirrorValue").innerText =
-        connected ? value : "---";
-
-    document.getElementById("statusText").innerText =
-        connected ? "Connected" : "Disconnected";
-
-    document.getElementById("statusDot").style.background =
-        connected ? "lime" : "red";
+function updateUI(value, connected){
+  hmiValue.innerText = connected ? value : "---";
+  mirrorValue.innerText = connected ? value : "---";
+  statusText.innerText = connected ? "Connected" : "Disconnected";
+  statusDot.style.background = connected ? "lime" : "red";
 }
 
-// 🔁 Poll liên tục → tự reconnect khi HMI cắm lại
-setInterval(fetchCloudData, 1000);
+setInterval(fetchData, 1000);
 </script>
-
-
-
 
 </body>
 </html>

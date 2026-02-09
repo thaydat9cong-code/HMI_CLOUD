@@ -4,7 +4,7 @@ const axios = require("axios");
 
 const HMI_IP = "192.168.8.15";
 const HMI_PORT = 502;
-const CLOUD_URL = "https://hmi-cloud.onrender.com/api/hmi";
+const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
 let socket;
 let client;
@@ -28,7 +28,7 @@ function connectHMI() {
 function handleDisconnect() {
   if (connected) console.log("❌ HMI disconnected");
   connected = false;
-  setTimeout(connectHMI, 3000);
+  setTimeout(connectHMI, 3000); // auto reconnect
 }
 
 setInterval(async () => {
