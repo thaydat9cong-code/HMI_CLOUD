@@ -1,162 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>HMI CLOUD – Virtual HMI</title>
+<title>HMI CLOUD - WinTK Style</title>
 
 <style>
-body{
-  margin:0;
-  background:#020617;
-  font-family: Consolas, Arial;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  color:white;
+body {
+    background: #2b2b2b;
+    font-family: Arial, sans-serif;
 }
 
-.hmi{
-  background:#0f172a;
-  border-radius:16px;
-  padding:30px;
-  width:420px;
-  box-shadow:0 0 40px #38bdf8;
+/* Khung HMI giống WinTK */
+#hmi {
+    width: 900px;
+    height: 500px;
+    background: #e5e5e5;
+    margin: 30px auto;
+    border: 3px solid #333;
 }
 
-.title{
-  text-align:center;
-  font-size:22px;
-  color:#38bdf8;
-  margin-bottom:20px;
+/* Thanh tiêu đề */
+#titlebar {
+    height: 40px;
+    background: #004aad;
+    color: white;
+    line-height: 40px;
+    padding-left: 10px;
+    font-weight: bold;
 }
 
-/* Numeric display */
-.display{
-  background:black;
-  border-radius:8px;
-  padding:15px;
-  font-size:72px;
-  color:#22c55e;
-  text-align:right;
-  margin-bottom:20px;
+/* Thanh menu */
+#menu {
+    background: #ccc;
+    padding: 5px;
+}
+#menu button {
+    margin-right: 5px;
 }
 
-/* Lamp */
-.lamp{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:20px;
+/* Khu vực màn hình */
+.screen {
+    display: none;
+    padding: 20px;
+}
+.screen.active {
+    display: block;
 }
 
-.dot{
-  width:16px;
-  height:16px;
-  border-radius:50%;
-  background:red;
-  box-shadow:0 0 8px red;
+/* Widget HMI */
+.value-box {
+    width: 150px;
+    padding: 10px;
+    background: black;
+    color: lime;
+    font-size: 28px;
+    text-align: center;
 }
-
-.dot.on{
-  background:#22c55e;
-  box-shadow:0 0 10px #22c55e;
-}
-
-/* Progress bar */
-.bar{
-  background:#020617;
-  border-radius:8px;
-  height:20px;
-  overflow:hidden;
-  margin-bottom:20px;
-}
-
-.bar-fill{
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,#22c55e,#38bdf8);
-}
-
-/* Buttons */
-.buttons{
-  display:flex;
-  gap:15px;
-}
-
-button{
-  flex:1;
-  padding:12px;
-  font-size:18px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  color:white;
-}
-
-.start{ background:#22c55e; }
-.stop{ background:#ef4444; }
 </style>
 </head>
 
 <body>
 
-<div class="hmi">
-  <div class="title">HMI CLOUD – VIRTUAL PANEL</div>
+<div id="hmi">
+    <div id="titlebar">HMI CLOUD MONITOR (WinTK Style)</div>
 
-  <div id="value" class="display">0</div>
+    <div id="menu">
+        <button onclick="showScreen('screen1')">Màn hình 1</button>
+        <button onclick="showScreen('screen2')">Màn hình 2</button>
+        <button onclick="showScreen('screen3')">Màn hình 3</button>
+    </div>
 
-  <div class="lamp">
-    <div id="lamp" class="dot"></div>
-    <div id="status">Disconnected</div>
-  </div>
+    <!-- SCREEN 1 -->
+    <div id="screen1" class="screen active">
+        <h3>📟 MÀN HÌNH CHÍNH</h3>
+        Giá trị PLC:
+        <div class="value-box" id="tagValue">0</div>
+        <br><br>
+        <button onclick="increase()">Tăng giá trị</button>
+    </div>
 
-  <div class="bar">
-    <div id="bar" class="bar-fill"></div>
-  </div>
+    <!-- SCREEN 2 -->
+    <div id="screen2" class="screen">
+        <h3>⚙️ MÀN HÌNH CÀI ĐẶT</h3>
+        Trạng thái:
+        <b id="status">Disconnected</b>
+        <br><br>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
 
-  <div class="buttons">
-    <button class="start" onclick="sendCmd(1)">START</button>
-    <button class="stop" onclick="sendCmd(0)">STOP</button>
-  </div>
+    <!-- SCREEN 3 -->
+    <div id="screen3" class="screen">
+        <h3>📊 MÀN HÌNH GIÁM SÁT</h3>
+        <p>Giá trị hiện tại:</p>
+        <div class="value-box" id="mirrorValue">0</div>
+    </div>
 </div>
 
 <script>
-async function loadData(){
-  try{
-    const res = await fetch("/data");
-    const data = await res.json();
+/* TAG giống PLC */
+let TAG = {
+    value: 0,
+    connected: false
+};
 
-    const v = data.value || 0;
-    document.getElementById("value").innerText = v;
-
-    // Lamp
-    const lamp = document.getElementById("lamp");
-    const status = document.getElementById("status");
-
-    if(data.status === "Connected"){
-      lamp.classList.add("on");
-      status.innerText = "Connected";
-    }else{
-      lamp.classList.remove("on");
-      status.innerText = "Disconnected";
-    }
-
-    // Bar (giả sử 0–100)
-    document.getElementById("bar").style.width = Math.min(v,100) + "%";
-
-  }catch(e){}
+/* Chuyển màn */
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
 }
 
-setInterval(loadData, 1000);
+/* Logic HMI */
+function increase() {
+    TAG.value++;
+    updateUI();
+}
 
-// gửi lệnh (chuẩn bị cho bước điều khiển)
-function sendCmd(cmd){
-  fetch("/cmd",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({cmd})
-  });
+function connect() {
+    TAG.connected = true;
+    updateUI();
+}
+
+function disconnect() {
+    TAG.connected = false;
+    updateUI();
+}
+
+function updateUI() {
+    document.getElementById('tagValue').innerText = TAG.value;
+    document.getElementById('mirrorValue').innerText = TAG.value;
+    document.getElementById('status').innerText =
+        TAG.connected ? 'Connected' : 'Disconnected';
 }
 </script>
 
