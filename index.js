@@ -5,49 +5,38 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 let hmiValue = null;
-let lastUpdate = 0;
-let history = []; // tối đa 300 điểm
+let lastHeartbeat = 0;
+let history = [];
+let idCounter = 0;
 
-/* ===== PC / HMI đẩy dữ liệu ===== */
 app.post("/update", (req, res) => {
-  const { hmi_value, hmi_connected, timestamp } = req.body;
+  const { connected, value, timestamp } = req.body;
 
-  if (
-    hmi_connected === true &&
-    typeof hmi_value === "number" &&
-    typeof timestamp === "number"
-  ) {
-    hmiValue = hmi_value;
-    lastUpdate = timestamp;
+  if (connected === true) {
+    lastHeartbeat = Date.now();
 
-    history.push({
-      t: new Date(timestamp).toLocaleTimeString(),
-      v: hmi_value
-    });
-
-    if (history.length > 300) history.shift();
+    if (typeof value === "number") {
+      hmiValue = value;
+      history.push({
+        id: ++idCounter,
+        t: timestamp,
+        v: value
+      });
+      if (history.length > 200) history.shift();
+    }
   }
 
   res.send("OK");
 });
 
-/* ===== Web đọc dữ liệu ===== */
 app.get("/api/status", (req, res) => {
-  const connected = Date.now() - lastUpdate < 5000;
+  const since = Number(req.query.since || 0);
 
   res.json({
-    hmi_connected: connected,
-    hmi_value: connected ? hmiValue : null,
-    history
+    connected: Date.now() - lastHeartbeat < 5000,
+    value: hmiValue,
+    history: history.filter(x => x.id > since)
   });
 });
 
-/* ===== Giao diện ===== */
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log("✅ HMI CLOUD SERVER RUNNING")
-);
+app.listen(process.env.PORT || 3000);

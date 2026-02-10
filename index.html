@@ -71,75 +71,43 @@ td,th { border:1px solid #333; padding:4px 8px; text-align:center }
 </div>
 
 <script>
-function showScreen(id){
- document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
- document.getElementById(id).classList.add('active');
-}
+let lastId = 0;
 
-/* ===== Chart ===== */
 const chart = new Chart(document.getElementById("chart"), {
- type:"line",
- data:{
-   labels:[],
-   datasets:[{
-     label:"LW5",
-     data:[],
-     borderColor:"lime",
-     tension:0.2
-   }]
- },
- options:{
-   responsive:true,
-   maintainAspectRatio:false,
-   animation:false
- }
+  type: "line",
+  data: { labels: [], datasets: [{ label: "LW5", data: [], borderColor: "lime" }] },
+  options: { animation: false }
 });
 
-let lastHistoryLength = 0;
-
-/* ===== Fetch ===== */
 async function fetchData(){
- try{
-  const r = await fetch("/api/status");
+  const r = await fetch(`/api/status?since=${lastId}`);
   const d = await r.json();
-  updateUI(d);
- }catch{}
-}
 
-function updateUI(d){
- const c = d.hmi_connected;
+  statusText.innerText = d.connected ? "Connected" : "Disconnected";
+  statusDot.style.background = d.connected ? "lime" : "red";
+  hmiValue.innerText = d.connected ? d.value : "---";
 
- document.getElementById("statusText").innerText = c?"Connected":"Disconnected";
- document.getElementById("statusDot").style.background = c?"lime":"red";
+  d.history.forEach(x => {
+    const time = new Date(x.t).toLocaleTimeString("vi-VN");
 
- document.getElementById("hmiValue").innerText = c ? d.hmi_value : "---";
- document.getElementById("mirrorValue").innerText = c ? d.hmi_value : "---";
+    chart.data.labels.push(time);
+    chart.data.datasets[0].data.push(x.v);
+    log.insertAdjacentHTML("afterbegin",
+      `<tr><td>${time}</td><td>${x.v}</td></tr>`);
 
- if (!Array.isArray(d.history)) return;
+    lastId = x.id;
+  });
 
- // 🔥 CHỈ cập nhật khi có dữ liệu MỚI
- if (d.history.length > lastHistoryLength) {
-   const last = d.history[d.history.length - 1];
-   lastHistoryLength = d.history.length;
+  if (chart.data.labels.length > 50) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
 
-   chart.data.labels.push(last.t);
-   chart.data.datasets[0].data.push(last.v);
-
-   if (chart.data.labels.length > 50) {
-     chart.data.labels.shift();
-     chart.data.datasets[0].data.shift();
-   }
-
-   chart.update();
-
-   document.getElementById("log").insertAdjacentHTML(
-     "afterbegin",
-     `<tr><td>${last.t}</td><td>${last.v}</td></tr>`
-   );
- }
+  chart.update();
 }
 
 setInterval(fetchData, 1000);
 </script>
+
 </body>
 </html>

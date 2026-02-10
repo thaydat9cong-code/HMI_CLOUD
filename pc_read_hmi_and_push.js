@@ -13,52 +13,37 @@ let lastValue = null;
 function connectHMI() {
   socket = new net.Socket();
   client = new Modbus.client.TCP(socket, 1);
-
-  socket.connect({ host: HMI_IP, port: HMI_PORT });
+  socket.connect(HMI_PORT, HMI_IP);
 
   socket.on("connect", () => {
     connected = true;
     console.log("✅ HMI connected");
   });
 
-  socket.on("close", handleDisconnect);
-  socket.on("error", handleDisconnect);
+  socket.on("close", () => connected = false);
+  socket.on("error", () => connected = false);
 }
 
-async function handleDisconnect() {
-  if (connected) console.log("❌ HMI disconnected");
-  connected = false;
-  lastValue = null;
-
-  await axios.post(CLOUD_URL, {
-    hmi_connected: false
-  }).catch(() => {});
-
-  setTimeout(connectHMI, 3000);
-}
-
-// đọc nhanh – chỉ gửi khi GIÁ TRỊ ĐỔI
 setInterval(async () => {
-  if (!connected) return;
-
   try {
+    if (!connected) {
+      await axios.post(CLOUD_URL, { connected: false });
+      return;
+    }
+
     const r = await client.readHoldingRegisters(5, 1);
     const value = r.response.body.values[0];
 
-    if (value !== lastValue) {
-      lastValue = value;
+    await axios.post(CLOUD_URL, {
+      connected: true,
+      value,
+      timestamp: Date.now()
+    });
 
-      await axios.post(CLOUD_URL, {
-        hmi_connected: true,
-        hmi_value: value,
-        timestamp: Date.now()   // ⏱️ thời gian thật tại gateway
-      });
-
-      console.log("📟 LW5 changed:", value);
-    }
+    lastValue = value;
   } catch {
-    handleDisconnect();
+    connected = false;
   }
-}, 500);
+}, 1000);
 
 connectHMI();
