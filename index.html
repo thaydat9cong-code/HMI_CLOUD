@@ -78,23 +78,25 @@ function showScreen(id){
 
 const chart = new Chart(document.getElementById("chart"), {
  type:"line",
- data:{
-   labels:[],
-   datasets:[{
-     label:"LW5",
-     data:[],
-     borderColor:"lime",
-     tension:0.2
-   }]
- },
- options:{
-   responsive:true,
-   maintainAspectRatio:false,
-   animation:false
- }
+ data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
+ options:{ animation:false, responsive:true, maintainAspectRatio:false }
 });
 
-let lastHistoryLength = 0;
+let historyCache = JSON.parse(localStorage.getItem("history") || "[]");
+
+// restore history after F5
+if (historyCache.length) {
+ chart.data.labels = historyCache.map(x =>
+   new Date(x.t).toLocaleTimeString("vi-VN")
+ );
+ chart.data.datasets[0].data = historyCache.map(x => x.v);
+ chart.update();
+
+ document.getElementById("log").innerHTML =
+   historyCache.slice().reverse().map(x =>
+     `<tr><td>${new Date(x.t).toLocaleTimeString("vi-VN")}</td><td>${x.v}</td></tr>`
+   ).join("");
+}
 
 async function fetchData(){
  try{
@@ -105,55 +107,35 @@ async function fetchData(){
 }
 
 function updateUI(d){
- const c = d.hmi_connected;
-
- document.getElementById("statusText").innerText = c?"Connected":"Disconnected";
- document.getElementById("statusDot").style.background = c?"lime":"red";
-
- document.getElementById("hmiValue").innerText = c ? d.hmi_value : "---";
- document.getElementById("mirrorValue").innerText = c ? d.hmi_value : "---";
+ document.getElementById("statusText").innerText =
+   d.hmi_connected ? "Connected" : "Disconnected";
+ document.getElementById("statusDot").style.background =
+   d.hmi_connected ? "lime" : "red";
 
  if (!Array.isArray(d.history)) return;
 
- // 👉 lần đầu load: đổ toàn bộ history (F5 không mất)
- if (lastHistoryLength === 0 && d.history.length > 0) {
-   chart.data.labels = d.history.map(x => x.t);
-   chart.data.datasets[0].data = d.history.map(x => x.v);
-   chart.update();
-
-   document.getElementById("log").innerHTML =
-     d.history.slice().reverse().map(x =>
-       `<tr><td>${x.t}</td><td>${x.v}</td></tr>`
-     ).join("");
-
-   lastHistoryLength = d.history.length;
-   return;
- }
-
- // 👉 cập nhật điểm mới
- if (d.history.length > lastHistoryLength) {
+ if (d.history.length > historyCache.length) {
    const last = d.history[d.history.length - 1];
-   lastHistoryLength = d.history.length;
+   historyCache.push(last);
 
-   chart.data.labels.push(last.t);
+   localStorage.setItem("history", JSON.stringify(historyCache));
+
+   const time = new Date(last.t).toLocaleTimeString("vi-VN");
+
+   chart.data.labels.push(time);
    chart.data.datasets[0].data.push(last.v);
-
-   if (chart.data.labels.length > 50) {
-     chart.data.labels.shift();
-     chart.data.datasets[0].data.shift();
-   }
-
    chart.update();
 
    document.getElementById("log").insertAdjacentHTML(
      "afterbegin",
-     `<tr><td>${last.t}</td><td>${last.v}</td></tr>`
+     `<tr><td>${time}</td><td>${last.v}</td></tr>`
    );
  }
 }
 
 setInterval(fetchData, 1000);
 </script>
+
 
 </body>
 </html>

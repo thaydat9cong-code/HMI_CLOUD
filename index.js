@@ -6,9 +6,9 @@ app.use(express.static(__dirname));
 
 let hmiValue = null;
 let lastUpdate = 0;
-let history = []; // giữ tối đa 300 điểm
+let connectedFlag = false;
+let history = [];
 
-// PC / Gateway đẩy dữ liệu
 app.post("/update", (req, res) => {
   const { hmi_value, hmi_connected, timestamp } = req.body;
 
@@ -16,13 +16,16 @@ app.post("/update", (req, res) => {
     lastUpdate = timestamp;
   }
 
+  if (hmi_connected === false) {
+    connectedFlag = false;
+  }
+
   if (hmi_connected === true && typeof hmi_value === "number") {
+    connectedFlag = true;
     hmiValue = hmi_value;
 
     history.push({
-      t: new Date(timestamp).toLocaleTimeString("vi-VN", {
-        timeZone: "Asia/Ho_Chi_Minh"
-      }),
+      t: timestamp, // ⬅ GIỮ NGUYÊN timestamp
       v: hmi_value
     });
 
@@ -32,13 +35,10 @@ app.post("/update", (req, res) => {
   res.send("OK");
 });
 
-// Web đọc dữ liệu
 app.get("/api/status", (req, res) => {
-  const connected = Date.now() - lastUpdate < 10000;
-
   res.json({
-    hmi_connected: connected,
-    hmi_value: connected ? hmiValue : null,
+    hmi_connected: connectedFlag,
+    hmi_value: hmiValue,
     history
   });
 });
@@ -48,6 +48,4 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log("✅ HMI CLOUD SERVER RUNNING")
-);
+app.listen(PORT, () => console.log("✅ SERVER RUNNING"));
