@@ -6,64 +6,59 @@ const HMI_IP = "192.168.8.15";
 const HMI_PORT = 502;
 const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
-let socket = null;
-let client = null;
+let socket, client;
 let connected = false;
 let lastValue = null;
-let lastPush = 0;
 
-function startConnectLoop() {
-  if (socket) {
-    socket.destroy();
-    socket = null;
-  }
-
+function connectHMI() {
   socket = new net.Socket();
   client = new Modbus.client.TCP(socket, 1);
 
-  socket.connect(HMI_PORT, HMI_IP);
+  socket.connect({ host: HMI_IP, port: HMI_PORT });
 
   socket.on("connect", () => {
     connected = true;
     console.log("✅ HMI connected");
   });
 
-  socket.on("close", () => {
-    connected = false;
-    console.log("⚠️ HMI disconnected, retry...");
-    setTimeout(startConnectLoop, 3000);
-  });
-
-  socket.on("error", () => {
-    connected = false;
-    setTimeout(startConnectLoop, 3000);
-  });
+  socket.on("close", handleDisconnect);
+  socket.on("error", handleDisconnect);
 }
 
+async function handleDisconnect() {
+  if (connected) console.log("❌ HMI disconnected");
+  connected = false;
+  lastValue = null;
+
+  await axios.post(CLOUD_URL, {
+    hmi_connected: false
+  }).catch(() => {});
+
+  setTimeout(connectHMI, 3000);
+}
+
+// đọc nhanh – chỉ gửi khi GIÁ TRỊ ĐỔI
 setInterval(async () => {
   if (!connected) return;
 
   try {
     const r = await client.readHoldingRegisters(5, 1);
     const value = r.response.body.values[0];
-    const now = Date.now();
 
-    // Chỉ push khi thay đổi hoặc heartbeat 5s
-    if (value !== lastValue || now - lastPush > 5000) {
+    if (value !== lastValue) {
       lastValue = value;
-      lastPush = now;
 
       await axios.post(CLOUD_URL, {
-        value,
-        timestamp: now
+        hmi_connected: true,
+        hmi_value: value,
+        timestamp: Date.now()   // ⏱️ thời gian thật tại gateway
       });
 
-      console.log("📤 Push:", value);
+      console.log("📟 LW5 changed:", value);
     }
-  } catch (e) {
-    connected = false;
-    socket.destroy();
+  } catch {
+    handleDisconnect();
   }
-}, 1000);
+}, 500);
 
-startConnectLoop();
+connectHMI();

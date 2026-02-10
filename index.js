@@ -6,31 +6,48 @@ app.use(express.static(__dirname));
 
 let hmiValue = null;
 let lastUpdate = 0;
-let history = [];
-let lastId = 0;
+let history = []; // tối đa 300 điểm
 
+/* ===== PC / HMI đẩy dữ liệu ===== */
 app.post("/update", (req, res) => {
-  const { value, timestamp } = req.body;
+  const { hmi_value, hmi_connected, timestamp } = req.body;
 
-  if (value !== hmiValue) {
-    hmiValue = value;
-    history.push({ id: ++lastId, t: timestamp, v: value });
-    if (history.length > 100) history.shift();
+  if (
+    hmi_connected === true &&
+    typeof hmi_value === "number" &&
+    typeof timestamp === "number"
+  ) {
+    hmiValue = hmi_value;
+    lastUpdate = timestamp;
+
+    history.push({
+      t: new Date(timestamp).toLocaleTimeString(),
+      v: hmi_value
+    });
+
+    if (history.length > 300) history.shift();
   }
 
-  lastUpdate = timestamp;
   res.send("OK");
 });
 
+/* ===== Web đọc dữ liệu ===== */
 app.get("/api/status", (req, res) => {
-  const since = Number(req.query.since || 0);
+  const connected = Date.now() - lastUpdate < 5000;
 
   res.json({
-    hmi_connected: Date.now() - lastUpdate < 6000,
-    hmi_value: hmiValue,
-    history: history.filter(x => x.id > since),
-    lastId
+    hmi_connected: connected,
+    hmi_value: connected ? hmiValue : null,
+    history
   });
 });
 
-app.listen(process.env.PORT || 3000);
+/* ===== Giao diện ===== */
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log("✅ HMI CLOUD SERVER RUNNING")
+);
