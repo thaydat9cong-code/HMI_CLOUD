@@ -70,37 +70,42 @@ function showScreen(id){
   document.getElementById(id).classList.add("active");
 }
 
-const chart = new Chart(document.getElementById("chart"), {
+const chart = new Chart(chartCanvas, {
   type:"line",
   data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
   options:{ animation:false }
 });
 
-let lastHistoryLen = 0;
+let lastId = 0;
 
 async function fetchData(){
-  const r = await fetch("/api/status");
+  const r = await fetch(`/api/status?since=${lastId}`);
   const d = await r.json();
 
   statusText.innerText = d.hmi_connected ? "Connected" : "Disconnected";
   statusDot.style.background = d.hmi_connected ? "lime" : "red";
 
-  hmiValue.innerText = d.hmi_connected ? d.hmi_value : "---";
-  mirrorValue.innerText = hmiValue.innerText;
+  if (d.history.length === 0) return;
 
-  if (d.history.length > lastHistoryLen) {
-    d.history.slice(lastHistoryLen).forEach(x=>{
-      chart.data.labels.push(new Date(x.t).toLocaleTimeString());
-      chart.data.datasets[0].data.push(x.v);
+  d.history.forEach(x=>{
+    chart.data.labels.push(new Date(x.t).toLocaleTimeString());
+    chart.data.datasets[0].data.push(x.v);
 
-      log.innerHTML += `<tr><td>${new Date(x.t).toLocaleTimeString()}</td><td>${x.v}</td></tr>`;
-    });
-    lastHistoryLen = d.history.length;
-    chart.update();
+    log.innerHTML += `<tr><td>${new Date(x.t).toLocaleTimeString()}</td><td>${x.v}</td></tr>`;
+    lastId = x.id;
+  });
+
+  // Giới hạn 50 điểm
+  if (chart.data.labels.length > 50) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
   }
+
+  chart.update();
 }
 
 setInterval(fetchData,1000);
 </script>
+
 </body>
 </html>
