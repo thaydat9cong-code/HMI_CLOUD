@@ -5,46 +5,27 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 let hmiValue = null;
-let connected = false;
-let lastSeen = 0;
+let lastUpdate = 0;
 let history = [];
 
 app.post("/update", (req, res) => {
-  const { type, value, timestamp } = req.body;
-  lastSeen = timestamp;
+  const { value, timestamp } = req.body;
 
-  if (type === "disconnect") {
-    connected = false;
-    return res.send("OK");
-  }
+  hmiValue = value;
+  lastUpdate = timestamp;
 
-  if (type === "heartbeat") {
-    connected = true;
-    return res.send("OK");
-  }
-
-  if (type === "value") {
-    connected = true;
-    hmiValue = value;
-
-    history.push({ t: timestamp, v: value });
-    if (history.length > 300) history.shift();
-  }
+  history.push({ t: timestamp, v: value });
+  if (history.length > 200) history.shift();
 
   res.send("OK");
 });
 
 app.get("/api/status", (req, res) => {
   res.json({
-    hmi_connected: connected,
+    hmi_connected: Date.now() - lastUpdate < 5000,
     hmi_value: hmiValue,
     history
   });
 });
 
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("✅ SERVER RUNNING"));
+app.listen(process.env.PORT || 3000);

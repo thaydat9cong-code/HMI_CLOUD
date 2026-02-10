@@ -71,81 +71,44 @@ td,th { border:1px solid #333; padding:4px 8px; text-align:center }
 </div>
 
 <script>
-function showScreen(id){
- document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
- document.getElementById(id).classList.add('active');
-}
-
 const chart = new Chart(document.getElementById("chart"), {
  type:"line",
  data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
- options:{ animation:false, responsive:true, maintainAspectRatio:false }
+ options:{ animation:false }
 });
 
-let historyCache = JSON.parse(localStorage.getItem("history") || "[]");
-let lastHistoryLength = historyCache.length;
-
-// restore after F5
-if (historyCache.length) {
- chart.data.labels = historyCache.map(x =>
-   new Date(x.t).toLocaleTimeString("vi-VN")
- );
- chart.data.datasets[0].data = historyCache.map(x => x.v);
- chart.update();
-
- document.getElementById("log").innerHTML =
-   historyCache.slice().reverse().map(x =>
-     `<tr><td>${new Date(x.t).toLocaleTimeString("vi-VN")}</td><td>${x.v}</td></tr>`
-   ).join("");
-}
+let lastHistoryLen = 0;
 
 async function fetchData(){
- try{
-  const r = await fetch("/api/status");
-  const d = await r.json();
-  updateUI(d);
- }catch{}
-}
+ const r = await fetch("/api/status");
+ const d = await r.json();
 
-function updateUI(d){
  document.getElementById("statusText").innerText =
    d.hmi_connected ? "Connected" : "Disconnected";
  document.getElementById("statusDot").style.background =
    d.hmi_connected ? "lime" : "red";
 
  document.getElementById("hmiValue").innerText =
-   d.hmi_connected && d.hmi_value !== null ? d.hmi_value : "---";
- document.getElementById("mirrorValue").innerText =
-   d.hmi_connected && d.hmi_value !== null ? d.hmi_value : "---";
+   d.hmi_connected ? d.hmi_value : "---";
 
- if (!Array.isArray(d.history)) return;
+ if (d.history.length > lastHistoryLen) {
+   const newItems = d.history.slice(lastHistoryLen);
+   lastHistoryLen = d.history.length;
 
- // 🔹 chỉ update khi history tăng
- if (d.history.length > lastHistoryLength) {
-   const newItems = d.history.slice(lastHistoryLength);
-   lastHistoryLength = d.history.length;
-
-   newItems.forEach(item => {
-     historyCache.push(item);
-
-     const time = new Date(item.t).toLocaleTimeString("vi-VN");
-
-     chart.data.labels.push(time);
-     chart.data.datasets[0].data.push(item.v);
-
-     document.getElementById("log").insertAdjacentHTML(
-       "afterbegin",
-       `<tr><td>${time}</td><td>${item.v}</td></tr>`
+   newItems.forEach(x => {
+     chart.data.labels.push(
+       new Date(x.t).toLocaleTimeString("vi-VN")
      );
+     chart.data.datasets[0].data.push(x.v);
    });
 
-   localStorage.setItem("history", JSON.stringify(historyCache));
    chart.update();
  }
 }
 
 setInterval(fetchData, 1000);
 </script>
+
 
 
 
