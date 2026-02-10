@@ -9,11 +9,11 @@ const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 let socket, client;
 let connected = false;
 let lastValue = null;
+let lastPush = 0;
 
 function connectHMI() {
   socket = new net.Socket();
   client = new Modbus.client.TCP(socket, 1);
-
   socket.connect({ host: HMI_IP, port: HMI_PORT });
 
   socket.on("connect", () => {
@@ -31,15 +31,13 @@ setInterval(async () => {
   try {
     const r = await client.readHoldingRegisters(5, 1);
     const value = r.response.body.values[0];
+    const now = Date.now();
 
-    if (value !== lastValue) {
+    if (value !== lastValue || now - lastPush > 3000) {
       lastValue = value;
+      lastPush = now;
 
-      await axios.post(CLOUD_URL, {
-        value,
-        timestamp: Date.now()
-      });
-
+      await axios.post(CLOUD_URL, { value, timestamp: now });
       console.log("📤 Push:", value);
     }
   } catch {

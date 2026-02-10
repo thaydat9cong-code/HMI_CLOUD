@@ -26,8 +26,8 @@ td,th { border:1px solid #333; padding:4px 8px; text-align:center }
 
 <div id="menu">
 <button onclick="showScreen('s1')">Màn 1</button>
-<button onclick="showScreen('s2')">Màn 2</button>
-<button onclick="showScreen('s3')">Màn 3</button>
+<button onclick="showScreen('s2')">Thông tin</button>
+<button onclick="showScreen('s3')">Giám sát</button>
 <button onclick="showScreen('s4')">📈 Đồ thị</button>
 <button onclick="showScreen('s5')">🕒 Lịch sử</button>
 </div>
@@ -46,71 +46,61 @@ td,th { border:1px solid #333; padding:4px 8px; text-align:center }
 </div>
 
 <div id="s3" class="screen">
-<h3>MIRROR</h3>
+<h3>GIÁM SÁT</h3>
 <div class="value-box" id="mirrorValue">---</div>
 </div>
 
 <div id="s4" class="screen">
 <h3>ĐỒ THỊ LW5</h3>
-<div style="height:260px; border:1px solid #333;">
-  <canvas id="chart"></canvas>
-</div>
+<canvas id="chart" height="260"></canvas>
 </div>
 
 <div id="s5" class="screen">
 <h3>LỊCH SỬ LW5</h3>
-<div style="height:260px; overflow-y:auto; border:1px solid #333;">
 <table>
-<thead>
-<tr><th>Time</th><th>Value</th></tr>
-</thead>
+<thead><tr><th>Time</th><th>Value</th></tr></thead>
 <tbody id="log"></tbody>
 </table>
 </div>
 </div>
-</div>
 
 <script>
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
 const chart = new Chart(document.getElementById("chart"), {
- type:"line",
- data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
- options:{ animation:false }
+  type:"line",
+  data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
+  options:{ animation:false }
 });
 
 let lastHistoryLen = 0;
 
 async function fetchData(){
- const r = await fetch("/api/status");
- const d = await r.json();
+  const r = await fetch("/api/status");
+  const d = await r.json();
 
- document.getElementById("statusText").innerText =
-   d.hmi_connected ? "Connected" : "Disconnected";
- document.getElementById("statusDot").style.background =
-   d.hmi_connected ? "lime" : "red";
+  statusText.innerText = d.hmi_connected ? "Connected" : "Disconnected";
+  statusDot.style.background = d.hmi_connected ? "lime" : "red";
 
- document.getElementById("hmiValue").innerText =
-   d.hmi_connected ? d.hmi_value : "---";
+  hmiValue.innerText = d.hmi_connected ? d.hmi_value : "---";
+  mirrorValue.innerText = hmiValue.innerText;
 
- if (d.history.length > lastHistoryLen) {
-   const newItems = d.history.slice(lastHistoryLen);
-   lastHistoryLen = d.history.length;
+  if (d.history.length > lastHistoryLen) {
+    d.history.slice(lastHistoryLen).forEach(x=>{
+      chart.data.labels.push(new Date(x.t).toLocaleTimeString());
+      chart.data.datasets[0].data.push(x.v);
 
-   newItems.forEach(x => {
-     chart.data.labels.push(
-       new Date(x.t).toLocaleTimeString("vi-VN")
-     );
-     chart.data.datasets[0].data.push(x.v);
-   });
-
-   chart.update();
- }
+      log.innerHTML += `<tr><td>${new Date(x.t).toLocaleTimeString()}</td><td>${x.v}</td></tr>`;
+    });
+    lastHistoryLen = d.history.length;
+    chart.update();
+  }
 }
 
-setInterval(fetchData, 1000);
+setInterval(fetchData,1000);
 </script>
-
-
-
-
 </body>
 </html>
