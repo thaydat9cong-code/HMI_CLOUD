@@ -37,7 +37,7 @@ async function handleDisconnect() {
   setTimeout(connectHMI, 3000);
 }
 
-// đọc nhanh – gửi CHỈ khi đổi
+// đọc nhanh – chỉ gửi khi GIÁ TRỊ ĐỔI
 setInterval(async () => {
   if (!connected) return;
 
@@ -47,12 +47,14 @@ setInterval(async () => {
 
     if (value !== lastValue) {
       lastValue = value;
-      console.log("📟 LW5 changed:", value);
 
       await axios.post(CLOUD_URL, {
         hmi_connected: true,
-        hmi_value: value
+        hmi_value: value,
+        timestamp: Date.now()   // ⏱️ thời gian thật tại gateway
       });
+
+      console.log("📟 LW5 changed:", value);
     }
   } catch {
     handleDisconnect();

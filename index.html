@@ -61,7 +61,9 @@ td,th { border:1px solid #333; padding:4px 8px; text-align:center }
 <h3>LỊCH SỬ LW5</h3>
 <div style="height:260px; overflow-y:auto; border:1px solid #333;">
 <table>
-<thead><tr><th>Time</th><th>Value</th></tr></thead>
+<thead>
+<tr><th>Time</th><th>Value</th></tr>
+</thead>
 <tbody id="log"></tbody>
 </table>
 </div>
@@ -74,6 +76,7 @@ function showScreen(id){
  document.getElementById(id).classList.add('active');
 }
 
+/* ===== Chart ===== */
 const chart = new Chart(document.getElementById("chart"), {
  type:"line",
  data:{
@@ -92,6 +95,9 @@ const chart = new Chart(document.getElementById("chart"), {
  }
 });
 
+let lastHistoryLength = 0;
+
+/* ===== Fetch ===== */
 async function fetchData(){
  try{
   const r = await fetch("/api/status");
@@ -109,18 +115,31 @@ function updateUI(d){
  document.getElementById("hmiValue").innerText = c ? d.hmi_value : "---";
  document.getElementById("mirrorValue").innerText = c ? d.hmi_value : "---";
 
- if (Array.isArray(d.history) && d.history.length){
-   chart.data.labels = d.history.map(i=>i.t);
-   chart.data.datasets[0].data = d.history.map(i=>i.v);
+ if (!Array.isArray(d.history)) return;
+
+ // 🔥 CHỈ cập nhật khi có dữ liệu MỚI
+ if (d.history.length > lastHistoryLength) {
+   const last = d.history[d.history.length - 1];
+   lastHistoryLength = d.history.length;
+
+   chart.data.labels.push(last.t);
+   chart.data.datasets[0].data.push(last.v);
+
+   if (chart.data.labels.length > 50) {
+     chart.data.labels.shift();
+     chart.data.datasets[0].data.shift();
+   }
+
    chart.update();
 
-   document.getElementById("log").innerHTML =
-     d.history.slice(-50).reverse()
-       .map(i=>`<tr><td>${i.t}</td><td>${i.v}</td></tr>`).join("");
+   document.getElementById("log").insertAdjacentHTML(
+     "afterbegin",
+     `<tr><td>${last.t}</td><td>${last.v}</td></tr>`
+   );
  }
 }
 
-setInterval(fetchData,1000);
+setInterval(fetchData, 1000);
 </script>
 </body>
 </html>
