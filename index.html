@@ -105,6 +105,7 @@ const chart = new Chart(document.getElementById("chart"), {
 });
 
 let lastId = 0;
+let lastValueClient = null;   // 🔑 CHỐT Ở ĐÂY
 
 /* ===== FETCH ===== */
 async function fetchData(){
@@ -121,6 +122,15 @@ async function fetchData(){
     if (!Array.isArray(d.history)) return;
 
     d.history.forEach(x => {
+
+      // 🚫 KHÔNG vẽ nếu giá trị không đổi
+      if (x.v === lastValueClient) {
+        lastId = x.id;
+        return;
+      }
+
+      lastValueClient = x.v;
+
       const time = new Date(x.t).toLocaleTimeString("vi-VN");
 
       chart.data.labels.push(time);
@@ -147,6 +157,7 @@ async function fetchData(){
 
 setInterval(fetchData, 1000);
 </script>
+
 
 
 </body>
