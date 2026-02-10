@@ -8,6 +8,7 @@ const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
 let socket, client;
 let connected = false;
+let lastValue = null;
 
 function connectHMI() {
   socket = new net.Socket();
@@ -27,6 +28,7 @@ function connectHMI() {
 async function handleDisconnect() {
   if (connected) console.log("❌ HMI disconnected");
   connected = false;
+  lastValue = null;
 
   await axios.post(CLOUD_URL, {
     hmi_connected: false
@@ -35,6 +37,7 @@ async function handleDisconnect() {
   setTimeout(connectHMI, 3000);
 }
 
+// đọc nhanh – gửi CHỈ khi đổi
 setInterval(async () => {
   if (!connected) return;
 
@@ -42,15 +45,18 @@ setInterval(async () => {
     const r = await client.readHoldingRegisters(5, 1);
     const value = r.response.body.values[0];
 
-    console.log("📟 LW5 =", value);
+    if (value !== lastValue) {
+      lastValue = value;
+      console.log("📟 LW5 changed:", value);
 
-    await axios.post(CLOUD_URL, {
-      hmi_connected: true,
-      hmi_value: value
-    });
+      await axios.post(CLOUD_URL, {
+        hmi_connected: true,
+        hmi_value: value
+      });
+    }
   } catch {
     handleDisconnect();
   }
-}, 1000);
+}, 500);
 
 connectHMI();
