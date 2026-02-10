@@ -6,28 +6,51 @@ const HMI_IP = "192.168.8.15";
 const HMI_PORT = 502;
 const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 
-let socket, client;
+let socket = null;
+let client = null;
 let connected = false;
-let lastValue = null;
+let reconnecting = false;
 
+/* ===== CONNECT LOOP ===== */
 function connectHMI() {
+  if (reconnecting) return;
+  reconnecting = true;
+
+  if (socket) {
+    try { socket.destroy(); } catch {}
+    socket = null;
+  }
+
   socket = new net.Socket();
   client = new Modbus.client.TCP(socket, 1);
+
   socket.connect(HMI_PORT, HMI_IP);
 
   socket.on("connect", () => {
     connected = true;
+    reconnecting = false;
     console.log("✅ HMI connected");
   });
 
-  socket.on("close", () => connected = false);
-  socket.on("error", () => connected = false);
+  socket.on("close", handleDisconnect);
+  socket.on("error", handleDisconnect);
 }
 
+function handleDisconnect() {
+  if (connected) console.log("❌ HMI disconnected");
+  connected = false;
+
+  setTimeout(() => {
+    reconnecting = false;
+    connectHMI();
+  }, 3000);
+}
+
+/* ===== READ & PUSH ===== */
 setInterval(async () => {
   try {
     if (!connected) {
-      await axios.post(CLOUD_URL, { connected: false });
+      await axios.post(CLOUD_URL, { connected: false }).catch(()=>{});
       return;
     }
 
@@ -40,10 +63,10 @@ setInterval(async () => {
       timestamp: Date.now()
     });
 
-    lastValue = value;
   } catch {
-    connected = false;
+    handleDisconnect();
   }
 }, 1000);
 
+/* ===== START ===== */
 connectHMI();
