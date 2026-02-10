@@ -83,8 +83,9 @@ const chart = new Chart(document.getElementById("chart"), {
 });
 
 let historyCache = JSON.parse(localStorage.getItem("history") || "[]");
+let lastHistoryLength = historyCache.length;
 
-// restore history after F5
+// restore after F5
 if (historyCache.length) {
  chart.data.labels = historyCache.map(x =>
    new Date(x.t).toLocaleTimeString("vi-VN")
@@ -112,29 +113,40 @@ function updateUI(d){
  document.getElementById("statusDot").style.background =
    d.hmi_connected ? "lime" : "red";
 
+ document.getElementById("hmiValue").innerText =
+   d.hmi_connected && d.hmi_value !== null ? d.hmi_value : "---";
+ document.getElementById("mirrorValue").innerText =
+   d.hmi_connected && d.hmi_value !== null ? d.hmi_value : "---";
+
  if (!Array.isArray(d.history)) return;
 
- if (d.history.length > historyCache.length) {
-   const last = d.history[d.history.length - 1];
-   historyCache.push(last);
+ // 🔹 chỉ update khi history tăng
+ if (d.history.length > lastHistoryLength) {
+   const newItems = d.history.slice(lastHistoryLength);
+   lastHistoryLength = d.history.length;
+
+   newItems.forEach(item => {
+     historyCache.push(item);
+
+     const time = new Date(item.t).toLocaleTimeString("vi-VN");
+
+     chart.data.labels.push(time);
+     chart.data.datasets[0].data.push(item.v);
+
+     document.getElementById("log").insertAdjacentHTML(
+       "afterbegin",
+       `<tr><td>${time}</td><td>${item.v}</td></tr>`
+     );
+   });
 
    localStorage.setItem("history", JSON.stringify(historyCache));
-
-   const time = new Date(last.t).toLocaleTimeString("vi-VN");
-
-   chart.data.labels.push(time);
-   chart.data.datasets[0].data.push(last.v);
    chart.update();
-
-   document.getElementById("log").insertAdjacentHTML(
-     "afterbegin",
-     `<tr><td>${time}</td><td>${last.v}</td></tr>`
-   );
  }
 }
 
 setInterval(fetchData, 1000);
 </script>
+
 
 
 </body>
