@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>HMI CLOUD – WinTK Monitor</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -63,7 +62,6 @@ td,th { border:1px solid #333; padding:4px 8px }
 <tbody id="log"></tbody>
 </table>
 </div>
-
 </div>
 
 <script>
@@ -72,9 +70,17 @@ function showScreen(id){
  document.getElementById(id).classList.add('active');
 }
 
-let chart = new Chart(document.getElementById("chart"), {
+const chart = new Chart(document.getElementById("chart"), {
  type:"line",
- data:{ labels:[], datasets:[{ label:"LW5", data:[], borderColor:"lime" }] },
+ data:{
+   labels:[],
+   datasets:[{
+     label:"LW5",
+     data:[],
+     borderColor:"lime",
+     tension:0.2
+   }]
+ },
  options:{ animation:false }
 });
 
@@ -82,7 +88,6 @@ async function fetchData(){
  try{
   const r = await fetch("/api/status");
   const d = await r.json();
-
   updateUI(d);
  }catch{}
 }
@@ -93,17 +98,17 @@ function updateUI(d){
  document.getElementById("statusText").innerText = c?"Connected":"Disconnected";
  document.getElementById("statusDot").style.background = c?"lime":"red";
 
- document.getElementById("hmiValue").innerText = c?d.hmi_value:"---";
- document.getElementById("mirrorValue").innerText = c?d.hmi_value:"---";
+ document.getElementById("hmiValue").innerText = c ? d.hmi_value : "---";
+ document.getElementById("mirrorValue").innerText = c ? d.hmi_value : "---";
 
- if(d.history){
-  chart.data.labels = d.history.map(i=>i.t);
-  chart.data.datasets[0].data = d.history.map(i=>i.v);
-  chart.update();
+ if (Array.isArray(d.history) && d.history.length){
+   chart.data.labels = d.history.map(i=>i.t);
+   chart.data.datasets[0].data = d.history.map(i=>i.v);
+   chart.update();
 
-  document.getElementById("log").innerHTML =
-    d.history.slice(-20).reverse()
-      .map(i=>`<tr><td>${i.t}</td><td>${i.v}</td></tr>`).join("");
+   document.getElementById("log").innerHTML =
+     d.history.slice(-20).reverse()
+       .map(i=>`<tr><td>${i.t}</td><td>${i.v}</td></tr>`).join("");
  }
 }
 

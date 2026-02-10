@@ -7,14 +7,14 @@ app.use(express.static(__dirname));
 let hmiValue = null;
 let lastUpdate = 0;
 
-// Lưu lịch sử (tối đa 300 điểm ~ 5 phút nếu 1s/điểm)
+// Lưu lịch sử (tối đa 300 điểm)
 let history = [];
 
 /* ===== PC / HMI đẩy dữ liệu ===== */
 app.post("/update", (req, res) => {
   const { hmi_value, hmi_connected } = req.body;
 
-  if (hmi_connected) {
+  if (hmi_connected === true && typeof hmi_value === "number") {
     hmiValue = hmi_value;
     lastUpdate = Date.now();
 
