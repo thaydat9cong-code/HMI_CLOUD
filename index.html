@@ -76,7 +76,6 @@ function showScreen(id){
  document.getElementById(id).classList.add('active');
 }
 
-/* ===== Chart ===== */
 const chart = new Chart(document.getElementById("chart"), {
  type:"line",
  data:{
@@ -97,7 +96,6 @@ const chart = new Chart(document.getElementById("chart"), {
 
 let lastHistoryLength = 0;
 
-/* ===== Fetch ===== */
 async function fetchData(){
  try{
   const r = await fetch("/api/status");
@@ -117,7 +115,22 @@ function updateUI(d){
 
  if (!Array.isArray(d.history)) return;
 
- // 🔥 CHỈ cập nhật khi có dữ liệu MỚI
+ // 👉 lần đầu load: đổ toàn bộ history (F5 không mất)
+ if (lastHistoryLength === 0 && d.history.length > 0) {
+   chart.data.labels = d.history.map(x => x.t);
+   chart.data.datasets[0].data = d.history.map(x => x.v);
+   chart.update();
+
+   document.getElementById("log").innerHTML =
+     d.history.slice().reverse().map(x =>
+       `<tr><td>${x.t}</td><td>${x.v}</td></tr>`
+     ).join("");
+
+   lastHistoryLength = d.history.length;
+   return;
+ }
+
+ // 👉 cập nhật điểm mới
  if (d.history.length > lastHistoryLength) {
    const last = d.history[d.history.length - 1];
    lastHistoryLength = d.history.length;
@@ -141,5 +154,6 @@ function updateUI(d){
 
 setInterval(fetchData, 1000);
 </script>
+
 </body>
 </html>

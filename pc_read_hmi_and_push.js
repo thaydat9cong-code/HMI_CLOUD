@@ -9,6 +9,7 @@ const CLOUD_URL = "https://hmi-cloud.onrender.com/update";
 let socket, client;
 let connected = false;
 let lastValue = null;
+let lastSend = 0;
 
 function connectHMI() {
   socket = new net.Socket();
@@ -31,30 +32,34 @@ async function handleDisconnect() {
   lastValue = null;
 
   await axios.post(CLOUD_URL, {
-    hmi_connected: false
+    hmi_connected: false,
+    timestamp: Date.now()
   }).catch(() => {});
 
   setTimeout(connectHMI, 3000);
 }
 
-// đọc nhanh – chỉ gửi khi GIÁ TRỊ ĐỔI
+// đọc LW5
 setInterval(async () => {
   if (!connected) return;
 
   try {
     const r = await client.readHoldingRegisters(5, 1);
     const value = r.response.body.values[0];
+    const now = Date.now();
 
-    if (value !== lastValue) {
+    // gửi khi đổi giá trị HOẶC mỗi 2s (keep-alive)
+    if (value !== lastValue || now - lastSend > 2000) {
       lastValue = value;
+      lastSend = now;
 
       await axios.post(CLOUD_URL, {
         hmi_connected: true,
         hmi_value: value,
-        timestamp: Date.now()   // ⏱️ thời gian thật tại gateway
+        timestamp: now
       });
 
-      console.log("📟 LW5 changed:", value);
+      console.log("📟 LW5:", value);
     }
   } catch {
     handleDisconnect();

@@ -6,22 +6,23 @@ app.use(express.static(__dirname));
 
 let hmiValue = null;
 let lastUpdate = 0;
-let history = []; // tối đa 300 điểm
+let history = []; // giữ tối đa 300 điểm
 
-/* ===== PC / HMI đẩy dữ liệu ===== */
+// PC / Gateway đẩy dữ liệu
 app.post("/update", (req, res) => {
   const { hmi_value, hmi_connected, timestamp } = req.body;
 
-  if (
-    hmi_connected === true &&
-    typeof hmi_value === "number" &&
-    typeof timestamp === "number"
-  ) {
-    hmiValue = hmi_value;
+  if (typeof timestamp === "number") {
     lastUpdate = timestamp;
+  }
+
+  if (hmi_connected === true && typeof hmi_value === "number") {
+    hmiValue = hmi_value;
 
     history.push({
-      t: new Date(timestamp).toLocaleTimeString(),
+      t: new Date(timestamp).toLocaleTimeString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh"
+      }),
       v: hmi_value
     });
 
@@ -31,9 +32,9 @@ app.post("/update", (req, res) => {
   res.send("OK");
 });
 
-/* ===== Web đọc dữ liệu ===== */
+// Web đọc dữ liệu
 app.get("/api/status", (req, res) => {
-  const connected = Date.now() - lastUpdate < 5000;
+  const connected = Date.now() - lastUpdate < 10000;
 
   res.json({
     hmi_connected: connected,
@@ -42,7 +43,6 @@ app.get("/api/status", (req, res) => {
   });
 });
 
-/* ===== Giao diện ===== */
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
